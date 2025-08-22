@@ -73,6 +73,24 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 
   const { user: foundUser, team: foundTeam } = userWithTeam[0];
 
+  // Check if user is OAuth-only (no password)
+  if (foundUser.authProvider === 'google' && !foundUser.passwordHash) {
+    return {
+      error: 'This account was created with Google. Please use "Continue with Google" to sign in.',
+      email,
+      password
+    };
+  }
+
+  // Validate password for password-based users
+  if (!foundUser.passwordHash) {
+    return {
+      error: 'Invalid email or password. Please try again.',
+      email,
+      password
+    };
+  }
+
   const isPasswordValid = await comparePasswords(
     password,
     foundUser.passwordHash
@@ -234,10 +252,26 @@ const updatePasswordSchema = z.object({
   confirmPassword: z.string().min(8).max(100)
 });
 
+const setPasswordSchema = z.object({
+  newPassword: z.string().min(8).max(100),
+  confirmPassword: z.string().min(8).max(100),
+  isOAuthUser: z.string().optional()
+});
+
 export const updatePassword = validatedActionWithUser(
   updatePasswordSchema,
   async (data, _, user) => {
     const { currentPassword, newPassword, confirmPassword } = data;
+
+    // Check if user has a password (not OAuth-only)
+    if (!user.passwordHash) {
+      return {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+        error: 'This account was created with Google and cannot have a password set.'
+      };
+    }
 
     const isPasswordValid = await comparePasswords(
       currentPassword,
@@ -288,6 +322,48 @@ export const updatePassword = validatedActionWithUser(
   }
 );
 
+export const setPassword = validatedActionWithUser(
+  setPasswordSchema,
+  async (data, _, user) => {
+    const { newPassword, confirmPassword, isOAuthUser } = data;
+
+    // Only allow OAuth users to set their first password
+    if (!isOAuthUser || user.authProvider !== 'google' || user.passwordHash) {
+      return {
+        newPassword,
+        confirmPassword,
+        error: 'This action is only available for Google OAuth users without passwords.'
+      };
+    }
+
+    if (confirmPassword !== newPassword) {
+      return {
+        newPassword,
+        confirmPassword,
+        error: 'New password and confirmation password do not match.'
+      };
+    }
+
+    const newPasswordHash = await hashPassword(newPassword);
+    const userWithTeam = await getUserWithTeam(user.id);
+
+    await Promise.all([
+      db
+        .update(users)
+        .set({ 
+          passwordHash: newPasswordHash,
+          authProvider: 'google_password' // Update to indicate they now have both
+        })
+        .where(eq(users.id, user.id)),
+      logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_PASSWORD)
+    ]);
+
+    return {
+      success: 'Password set successfully. You can now delete your account if needed.'
+    };
+  }
+);
+
 const deleteAccountSchema = z.object({
   password: z.string().min(8).max(100)
 });
@@ -296,6 +372,14 @@ export const deleteAccount = validatedActionWithUser(
   deleteAccountSchema,
   async (data, _, user) => {
     const { password } = data;
+
+    // Check if user has a password (OAuth users can delete if they've set a password)
+    if (!user.passwordHash) {
+      return {
+        password,
+        error: 'Please set a password first to enable account deletion.'
+      };
+    }
 
     const isPasswordValid = await comparePasswords(password, user.passwordHash);
     if (!isPasswordValid) {
@@ -340,21 +424,31 @@ export const deleteAccount = validatedActionWithUser(
 
 const updateAccountSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
-  email: z.string().email('Invalid email address')
+  email: z.string().email('Invalid email address'),
+  mobileNumber: z
+    .string()
+    .trim()
+    .min(0)
+    .max(20)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v))
 });
 
 export const updateAccount = validatedActionWithUser(
   updateAccountSchema,
   async (data, _, user) => {
-    const { name, email } = data;
+    const { name, email, mobileNumber } = data;
     const userWithTeam = await getUserWithTeam(user.id);
 
     await Promise.all([
-      db.update(users).set({ name, email }).where(eq(users.id, user.id)),
+      db
+        .update(users)
+        .set({ name, email, mobileNumber })
+        .where(eq(users.id, user.id)),
       logActivity(userWithTeam?.teamId, user.id, ActivityType.UPDATE_ACCOUNT)
     ]);
 
-    return { name, success: 'Account updated successfully.' };
+    return { name, mobileNumber, success: 'Account updated successfully.' };
   }
 );
 

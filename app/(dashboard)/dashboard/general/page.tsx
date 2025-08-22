@@ -15,6 +15,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 type ActionState = {
   name?: string;
+  mobileNumber?: string;
   error?: string;
   success?: string;
 };
@@ -22,12 +23,14 @@ type ActionState = {
 type AccountFormProps = {
   state: ActionState;
   nameValue?: string;
+  mobileNumberValue?: string;
   emailValue?: string;
 };
 
 function AccountForm({
   state,
   nameValue = '',
+  mobileNumberValue = '',
   emailValue = ''
 }: AccountFormProps) {
   return (
@@ -42,6 +45,18 @@ function AccountForm({
           placeholder="Enter your name"
           defaultValue={state.name || nameValue}
           required
+        />
+      </div>
+      <div>
+        <Label htmlFor="mobileNumber" className="mb-2">
+          Mobile Number
+        </Label>
+        <Input
+          id="mobileNumber"
+          name="mobileNumber"
+          type="tel"
+          placeholder="Enter your mobile number"
+          defaultValue={state.mobileNumber || mobileNumberValue}
         />
       </div>
       <div>
@@ -67,6 +82,7 @@ function AccountFormWithData({ state }: { state: ActionState }) {
     <AccountForm
       state={state}
       nameValue={user?.name ?? ''}
+      mobileNumberValue={user?.mobileNumber ?? ''}
       emailValue={user?.email ?? ''}
     />
   );

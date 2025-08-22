@@ -8,6 +8,20 @@
       "when": 1726443359662,
       "tag": "0000_soft_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1755797125134,
+      "tag": "0001_stormy_monster_badoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755877495044,
+      "tag": "0002_whole_fat_cobra",
+      "breakpoints": true
     }
   ]
 }
