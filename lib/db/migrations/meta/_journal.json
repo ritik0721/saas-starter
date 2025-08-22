@@ -22,6 +22,20 @@
       "when": 1755877495044,
       "tag": "0002_whole_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1755885391759,
+      "tag": "0003_bizarre_skullbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1755887917858,
+      "tag": "0004_melodic_swarm",
+      "breakpoints": true
     }
   ]
 }
